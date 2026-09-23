@@ -1,13 +1,8 @@
 # Build output
+build/
 .build/
-Mundane-*.zip
-build-icon-preview.png
-build-icon/
-*.app
-DerivedData/
 
 # Signing — never commit
-Local.xcconfig
 Local.sh
 
 # Agent instructions

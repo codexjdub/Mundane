@@ -6,8 +6,9 @@
 // an .icns can carry separately.
 import AppKit
 
-// Compiled together with Sources/Mundane/Palette.swift (see ./make.sh icon), so
-// these are the app's own values rather than a second copy that can drift.
+// Compiled together with Sources/Mundane/Palette.swift (see Scripts/make.sh
+// icon), so these are the app's own values rather than a second copy that can
+// drift.
 let shu   = nsColor(Ink.shu.light)
 let grey  = nsColor(Ink.iconDots.light)
 let edge  = nsColor(Ink.edge.light)
@@ -112,8 +113,8 @@ let slots: [(String, CGFloat, Bool)] = [
 
 let fm = FileManager.default
 let root = URL(fileURLWithPath: fm.currentDirectoryPath)
-let iconset = root.appendingPathComponent("build-icon/Mundane.iconset")
-try? fm.removeItem(at: iconset.deletingLastPathComponent())
+let iconset = root.appendingPathComponent("build/icon.iconset")
+try? fm.removeItem(at: iconset)
 try fm.createDirectory(at: iconset, withIntermediateDirectories: true)
 
 for (name, px, detailed) in slots {
@@ -129,7 +130,7 @@ let task = Process()
 task.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
 task.arguments = ["-c", "icns", iconset.path, "-o", out.path]
 try task.run(); task.waitUntilExit()
-try? fm.removeItem(at: iconset.deletingLastPathComponent())
+try? fm.removeItem(at: iconset)
 // preview sheet, so the icon can be eyeballed without installing it
 let sheetW = 620, sheetH = 210
 let sheet = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: sheetW, pixelsHigh: sheetH,
@@ -156,7 +157,7 @@ for half in 0..<2 {
 }
 NSGraphicsContext.restoreGraphicsState()
 try sheet.representation(using: .png, properties: [:])!
-    .write(to: root.appendingPathComponent("build-icon-preview.png"))
+    .write(to: root.appendingPathComponent("build/icon-preview.png"))
 
 print(task.terminationStatus == 0
       ? "wrote Resources/Mundane.icns"

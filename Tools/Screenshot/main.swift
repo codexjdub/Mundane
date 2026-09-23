@@ -1,5 +1,5 @@
 // Renders the real SwiftUI views offscreen into docs/screenshot.png.
-// Run: ./make.sh screenshot
+// Run: Scripts/make.sh screenshot
 //
 // Rendered rather than screen-captured so the image needs no Screen Recording
 // permission, carries none of the desktop with it, and can be regenerated after

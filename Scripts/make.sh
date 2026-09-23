@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 APP="Mundane"
 BUNDLE="$APP.app"
 BUNDLE_ID="com.mundane.Mundane"
+
+# Every artifact this script produces goes here, gitignored, so the project root
+# stays source-only. Distinct from SwiftPM's .build/, which never appears: the
+# compile itself happens in $SCRATCH, outside the tree entirely.
+OUT="build"
 
 # Signing identity lives in a gitignored Local.sh so it never reaches the repo.
 # Absent that file, fall back to ad-hoc so a fresh clone still builds.
@@ -22,7 +27,7 @@ SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 # and leaves sync-conflict copies like ".build/out 2" behind.
 SCRATCH="${TMPDIR%/}/mundane-build"
 
-# ./make.sh icon — regenerate Resources/Mundane.icns.
+# Scripts/make.sh icon — regenerate Resources/Mundane.icns.
 # swiftc, not `swift Tools/make-icon.swift`, because the tool is compiled together
 # with Palette.swift so it uses the app's own colours.
 if [ "${1:-}" = "icon" ]; then
@@ -70,23 +75,25 @@ xattr -cr "$STAGE"
 codesign --force --options runtime -s "$SIGN_IDENTITY" "$STAGE"
 codesign --verify --strict "$STAGE"
 
-rm -rf "$BUNDLE"
-ditto "$STAGE" "$BUNDLE"
-echo "==> $BUNDLE ready"
+mkdir -p "$OUT"
+rm -rf "$OUT/$BUNDLE"
+ditto "$STAGE" "$OUT/$BUNDLE"
+echo "==> $OUT/$BUNDLE ready"
 
-# ./make.sh release — zip the signed bundle for a GitHub release. ditto -c -k
-# --keepParent, not zip(1), which mangles a bundle's symlinks and signature.
+# Scripts/make.sh release — zip the signed bundle for a GitHub release.
+# ditto -c -k --keepParent, not zip(1), which mangles a bundle's symlinks
+# and signature.
 # The download is quarantined either way; without Developer ID and notarization
 # its first launch needs Privacy & Security -> Open Anyway, as the README says.
 if [ "${1:-}" = "release" ]; then
     VERSION=$(defaults read "$PWD/Resources/Info" CFBundleShortVersionString)
-    ZIP="$APP-$VERSION.zip"
+    ZIP="$OUT/$APP-$VERSION.zip"
     rm -f "$ZIP"
     ditto -c -k --keepParent "$STAGE" "$ZIP"
     echo "==> $ZIP ($(lipo -archs "$STAGE/Contents/MacOS/$APP"))"
 fi
 
-# ./make.sh install  — also place it in /Applications.
+# Scripts/make.sh install — also place it in /Applications.
 # Not required for launch at login: SMAppService reports "notFound" simply because
 # nothing is registered yet, from any location, and registering works fine from a
 # project directory. The real reason to install is that a rebuild here deletes and

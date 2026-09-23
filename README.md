@@ -28,9 +28,9 @@ macOS 14+ and Command Line Tools. **Xcode is not required.** Builds are universa
 Apple silicon and Intel.
 
 ```sh
-./make.sh            # build + sign into ./Mundane.app
-./make.sh install    # also copy to /Applications
-./make.sh release    # ad-hoc signed and zipped for a GitHub release
+Scripts/make.sh            # build + sign into build/Mundane.app
+Scripts/make.sh install    # also copy to /Applications
+Scripts/make.sh release    # ad-hoc signed and zipped for a GitHub release
 ```
 
 Signing identity comes from a gitignored `Local.sh`:
@@ -46,8 +46,8 @@ identity on every build, which breaks the registration.
 The icon is drawn in code, since `actool` is Xcode-only:
 
 ```sh
-./make.sh icon         # regenerates Resources/Mundane.icns
-./make.sh screenshot   # regenerates the README images
+Scripts/make.sh icon         # regenerates Resources/Mundane.icns
+Scripts/make.sh screenshot   # regenerates the README images
 ```
 
 The screenshots are rendered from the real SwiftUI views offscreen rather than
@@ -72,14 +72,14 @@ handling; the other non-obvious decisions are commented where they happen.
 ## Verifying
 
 ```sh
-./test.sh      # 13 unit tests
+Scripts/test.sh      # 13 unit tests
 ```
 
 Covers the pure units: panel positioning against three screen geometries, ribbon
 geometry for every month, scroll accumulation, key decoding, calendar maths, and
 that the reserved menu bar width holds for all 365 days in every format.
 
-`test.sh` exists rather than plain `swift test` for two Command Line Tools
+`Scripts/test.sh` exists rather than plain `swift test` for two Command Line Tools
 reasons, both explained in the script: the build has to live outside this tree
 (the file provider's extended attributes break codesigning), and
 `libTestingMacros.dylib` sits in a `testing/` subdirectory that isn't on
