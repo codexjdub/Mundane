@@ -28,6 +28,15 @@ if [ "${1:-}" = "icon" ]; then
     exit 0
 fi
 
+if [ "${1:-}" = "screenshot" ]; then
+    mkdir -p "${TMPDIR%/}/mundane-build"
+    swiftc -O -o "${TMPDIR%/}/mundane-build/shot" \
+        Tools/Screenshot/main.swift \
+        $(ls Sources/Mundane/*.swift | grep -v '/main\.swift$')
+    "${TMPDIR%/}/mundane-build/shot"
+    exit 0
+fi
+
 echo "==> build"
 swift build -c release --scratch-path "$SCRATCH"
 

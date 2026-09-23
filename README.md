@@ -4,6 +4,15 @@ A tiny calendar for the macOS menu bar. Shows the date; clicking it opens a mont
 three-month, or year view. No calendar events, no network, no timers — it idles at
 17 MB and 0% CPU with the panel closed.
 
+![Month and three-month views, light and dark](docs/screenshot.png)
+
+<details>
+<summary>Year view</summary>
+
+![Year view, light and dark](docs/screenshot-year.png)
+
+</details>
+
 ## Build
 
 macOS 14+ and Command Line Tools. **Xcode is not required.**
@@ -26,8 +35,13 @@ identity on every build, which breaks the registration.
 The icon is drawn in code, since `actool` is Xcode-only:
 
 ```sh
-./make.sh icon     # regenerates Resources/Mundane.icns
+./make.sh icon         # regenerates Resources/Mundane.icns
+./make.sh screenshot   # regenerates the README images
 ```
+
+The screenshots are rendered from the real SwiftUI views offscreen rather than
+screen-captured, so they need no Screen Recording permission, carry none of the
+desktop with them, and can be regenerated after any design change.
 
 It compiles against `Palette.swift` so the icon uses the app's own colours rather
 than a second copy of them.
