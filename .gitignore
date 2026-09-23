@@ -1,5 +1,6 @@
 # Build output
 .build/
+Mundane-*.zip
 build-icon-preview.png
 build-icon/
 *.app

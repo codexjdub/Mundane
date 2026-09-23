@@ -13,6 +13,15 @@ three-month, or year view. No calendar events, no network, no timers — it idle
 
 </details>
 
+## Install
+
+Download the zip from [Releases](https://github.com/codexjdub/Mundane/releases),
+unzip, and drag `Mundane.app` to Applications. Universal binary, macOS 14+.
+
+The first launch is refused. Mundane is signed ad-hoc rather than with a paid
+Developer ID, so Gatekeeper sees an unidentified developer. Open System Settings →
+Privacy & Security, scroll to the bottom, and click **Open Anyway**. Once only.
+
 ## Build
 
 macOS 14+ and Command Line Tools. **Xcode is not required.**
@@ -20,6 +29,7 @@ macOS 14+ and Command Line Tools. **Xcode is not required.**
 ```sh
 ./make.sh            # build + sign into ./Mundane.app
 ./make.sh install    # also copy to /Applications
+./make.sh release    # universal, ad-hoc signed, zipped for a release
 ```
 
 Signing identity comes from a gitignored `Local.sh`:

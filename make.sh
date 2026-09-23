@@ -12,6 +12,11 @@ BUNDLE_ID="com.mundane.Mundane"
 [ -f Local.sh ] && source Local.sh
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
+# A release build signs ad-hoc whatever Local.sh says: a self-signed certificate is
+# a trust anchor only in the keychain that made it, so it buys a downloader no trust
+# while tying a public artifact to a personal cert.
+[ "${1:-}" = "release" ] && SIGN_IDENTITY="-"
+
 # Build outside the project directory for the same reason test.sh does: this tree
 # is under a file provider that adds extended attributes, which breaks codesigning
 # and leaves sync-conflict copies like ".build/out 2" behind.
@@ -38,7 +43,15 @@ if [ "${1:-}" = "screenshot" ]; then
 fi
 
 echo "==> build"
-swift build -c release --scratch-path "$SCRATCH"
+if [ "${1:-}" = "release" ]; then
+    # Universal, so Intel Macs are covered. Kept out of everyday builds: two slices
+    # double the compile, and multi-arch relocates the product out of release/.
+    swift build -c release --scratch-path "$SCRATCH" --arch arm64 --arch x86_64
+    BIN="$SCRATCH/out/Products/Release/$APP"
+else
+    swift build -c release --scratch-path "$SCRATCH"
+    BIN="$SCRATCH/release/$APP"
+fi
 
 # Assemble, sign and verify in $TMPDIR, never in the project directory.
 # codesign --strict rejects com.apple.FinderInfo, and this tree lives under a file
@@ -52,7 +65,7 @@ STAGE="$STAGE_DIR/$BUNDLE"
 
 echo "==> assemble $BUNDLE"
 mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
-cp "$SCRATCH/release/$APP" "$STAGE/Contents/MacOS/$APP"
+cp "$BIN" "$STAGE/Contents/MacOS/$APP"
 cp Resources/Info.plist "$STAGE/Contents/Info.plist"
 cp Resources/Mundane.icns "$STAGE/Contents/Resources/Mundane.icns"
 
@@ -64,6 +77,18 @@ codesign --verify --strict "$STAGE"
 rm -rf "$BUNDLE"
 ditto "$STAGE" "$BUNDLE"
 echo "==> $BUNDLE ready"
+
+# ./make.sh release — zip the signed bundle for a GitHub release. ditto -c -k
+# --keepParent, not zip(1), which mangles a bundle's symlinks and signature.
+# The download is quarantined either way; without Developer ID and notarization
+# its first launch needs Privacy & Security -> Open Anyway, as the README says.
+if [ "${1:-}" = "release" ]; then
+    VERSION=$(defaults read "$PWD/Resources/Info" CFBundleShortVersionString)
+    ZIP="$APP-$VERSION.zip"
+    rm -f "$ZIP"
+    ditto -c -k --keepParent "$STAGE" "$ZIP"
+    echo "==> $ZIP ($(lipo -archs "$STAGE/Contents/MacOS/$APP"))"
+fi
 
 # ./make.sh install  — also place it in /Applications.
 # Not required for launch at login: SMAppService reports "notFound" simply because
