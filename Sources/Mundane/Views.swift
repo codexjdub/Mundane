@@ -455,7 +455,7 @@ struct PanelContent: View {
             }
 
             let year = YearProgress(for: state.today)
-            ProgressStrip(fraction: year.fraction, label: "\(year.dayOfYear)日",
+            ProgressStrip(fraction: year.fraction, label: "\(year.daysLeft)日",
                           z: z, topPadding: z.stripTop)
 
             if let birthYear = state.settings.birthYear,

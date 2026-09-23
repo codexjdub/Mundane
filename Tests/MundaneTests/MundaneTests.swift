@@ -67,12 +67,28 @@ import Testing
     let newYear = YearProgress(for: at(2026, 1, 1))
     #expect(newYear.dayOfYear == 1)
     #expect(newYear.fraction == 0)              // no days completed yet
+    #expect(newYear.daysLeft == 365)            // the whole year still to run
 
     let lastDay = YearProgress(for: at(2026, 12, 31))
-    #expect(lastDay.dayOfYear == 365)           // label counts the day you are in
-    #expect(lastDay.fraction < 1.0)             // but the bar is not full early
+    #expect(lastDay.dayOfYear == 365)
+    #expect(lastDay.fraction < 1.0)             // the bar is not full early
+    #expect(lastDay.daysLeft == 1)              // and today still counts as left
+
+    // The day the README screenshots are pinned to.
+    #expect(YearProgress(for: at(2026, 9, 22)).daysLeft == 101)
 
     #expect(YearProgress(for: at(2024, 12, 31)).totalDays == 366)
+
+    // The label is the empty part of the bar on every day, leap year included.
+    for year in [2024, 2026] {
+        var day = at(year, 1, 1)
+        while cal.component(.year, from: day) == year {
+            let p = YearProgress(for: day)
+            #expect((p.dayOfYear - 1) + p.daysLeft == p.totalDays)
+            #expect(abs(p.fraction + Double(p.daysLeft) / Double(p.totalDays) - 1) < 1e-12)
+            day = cal.date(byAdding: .day, value: 1, to: day)!
+        }
+    }
 }
 
 @Test func lifeProgressRejectsAndClamps() {

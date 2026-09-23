@@ -130,11 +130,15 @@ struct YearProgress {
     let totalDays: Int
 
     /// Completed days over total, so 31 December reads 364/365 rather than
-    /// hitting exactly 1.0 with a day still to run. `dayOfYear` stays 1-based
-    /// because the label counts the day you are in.
+    /// hitting exactly 1.0 with a day still to run.
     var fraction: Double {
         totalDays > 0 ? Double(dayOfYear - 1) / Double(totalDays) : 0
     }
+
+    /// Days not yet completed, today included — exactly the empty part of the
+    /// bar, so the two always add up to the year. 31 December reads 1, not 0:
+    /// by the same reasoning as `fraction`, that day is still to run.
+    var daysLeft: Int { totalDays - dayOfYear + 1 }
 
     init(for date: Date) {
         let cal = MonthMeta.calendar
