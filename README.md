@@ -31,6 +31,7 @@ Apple silicon and Intel.
 Scripts/make.sh            # build + sign into build/Mundane.app
 Scripts/make.sh install    # also copy to /Applications
 Scripts/make.sh release    # ad-hoc signed and zipped for a GitHub release
+Scripts/make.sh clean      # drop build/ and the scratch tree
 ```
 
 Signing identity comes from a gitignored `Local.sh`:

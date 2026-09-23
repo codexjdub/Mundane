@@ -12,7 +12,11 @@ func makeScreenshot() throws {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
 
-    let clock = Clock()
+    // Pinned, not Clock(): an unpinned clock renders whatever today is, so
+    // regenerating rewrites both PNGs with a different month for no reason.
+    // This is the day the committed images already show.
+    let clock = Clock(pinnedTo: MonthMeta.calendar.date(
+        from: DateComponents(year: 2026, month: 9, day: 22, hour: 12))!)
     let settings = Settings()
     settings.birthYear = 1990          // so the life bar appears in the shot
 

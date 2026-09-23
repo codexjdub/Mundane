@@ -113,7 +113,11 @@ let slots: [(String, CGFloat, Bool)] = [
 
 let fm = FileManager.default
 let root = URL(fileURLWithPath: fm.currentDirectoryPath)
-let iconset = root.appendingPathComponent("build/icon.iconset")
+
+// Output directory comes from Scripts/make.sh, so its name lives in one place
+// rather than being spelled again here. The default is only for a direct run.
+let outDir = CommandLine.arguments.dropFirst().first ?? "build"
+let iconset = root.appendingPathComponent("\(outDir)/icon.iconset")
 try? fm.removeItem(at: iconset)
 try fm.createDirectory(at: iconset, withIntermediateDirectories: true)
 
@@ -157,7 +161,7 @@ for half in 0..<2 {
 }
 NSGraphicsContext.restoreGraphicsState()
 try sheet.representation(using: .png, properties: [:])!
-    .write(to: root.appendingPathComponent("build/icon-preview.png"))
+    .write(to: root.appendingPathComponent("\(outDir)/icon-preview.png"))
 
 print(task.terminationStatus == 0
       ? "wrote Resources/Mundane.icns"

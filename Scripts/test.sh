@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# Resolve $0 through any symlinks before locating the project root, so the
+# script still works when linked into a directory on PATH. Then assert we
+# landed somewhere that is actually this package: without the check, a wrong
+# cd silently builds whatever other Swift package happens to be there.
+SELF="$0"
+while [ -L "$SELF" ]; do
+    LINK="$(readlink "$SELF")"
+    case "$LINK" in /*) SELF="$LINK" ;; *) SELF="$(dirname "$SELF")/$LINK" ;; esac
+done
+cd "$(dirname "$SELF")/.."
+[ -f Package.swift ] || { echo "not the project root: $PWD" >&2; exit 1; }
 
 # Two things this needs that a plain `swift test` does not:
 #

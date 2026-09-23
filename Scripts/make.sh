@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+# Resolve $0 through any symlinks before locating the project root, so the
+# script still works when linked into a directory on PATH. Then assert we
+# landed somewhere that is actually this package: without the check, a wrong
+# cd silently builds whatever other Swift package happens to be there.
+SELF="$0"
+while [ -L "$SELF" ]; do
+    LINK="$(readlink "$SELF")"
+    case "$LINK" in /*) SELF="$LINK" ;; *) SELF="$(dirname "$SELF")/$LINK" ;; esac
+done
+cd "$(dirname "$SELF")/.."
+[ -f Package.swift ] || { echo "not the project root: $PWD" >&2; exit 1; }
 
 APP="Mundane"
 BUNDLE="$APP.app"
@@ -27,23 +37,31 @@ SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 # and leaves sync-conflict copies like ".build/out 2" behind.
 SCRATCH="${TMPDIR%/}/mundane-build"
 
+# Scripts/make.sh clean — drop both build trees. The universal build keeps two
+# slices plus intermediates, which runs to hundreds of MB under $TMPDIR.
+if [ "${1:-}" = "clean" ]; then
+    rm -rf "$OUT" "$SCRATCH"
+    echo "==> removed $OUT and $SCRATCH"
+    exit 0
+fi
+
 # Scripts/make.sh icon — regenerate Resources/Mundane.icns.
 # swiftc, not `swift Tools/make-icon.swift`, because the tool is compiled together
 # with Palette.swift so it uses the app's own colours.
 if [ "${1:-}" = "icon" ]; then
-    mkdir -p "${TMPDIR%/}/mundane-build"
-    swiftc -O -o "${TMPDIR%/}/mundane-build/make-icon" \
+    mkdir -p "$SCRATCH"
+    swiftc -O -o "$SCRATCH/make-icon" \
         Tools/MakeIcon/main.swift Sources/Mundane/Palette.swift
-    "${TMPDIR%/}/mundane-build/make-icon"
+    "$SCRATCH/make-icon" "$OUT"
     exit 0
 fi
 
 if [ "${1:-}" = "screenshot" ]; then
-    mkdir -p "${TMPDIR%/}/mundane-build"
-    swiftc -O -o "${TMPDIR%/}/mundane-build/shot" \
+    mkdir -p "$SCRATCH"
+    swiftc -O -o "$SCRATCH/shot" \
         Tools/Screenshot/main.swift \
         $(ls Sources/Mundane/*.swift | grep -v '/main\.swift$')
-    "${TMPDIR%/}/mundane-build/shot"
+    "$SCRATCH/shot"
     exit 0
 fi
 
@@ -51,7 +69,12 @@ echo "==> build"
 # Universal, so any build here runs on Apple silicon and Intel alike. The second
 # slice costs about a second incrementally, which is not worth a separate release
 # mode. Multi-arch relocates the product out of release/, hence the longer path.
-swift build -c release --scratch-path "$SCRATCH" --arch arm64 --arch x86_64
+# The toolchain warns x86_64 is deprecated "for your deployment target (macOS
+# 27.0)". It is wrong about the target — Package.swift pins macOS 14 and vtool
+# reports minos 14.0 on both slices — and it fires on every build, so it would
+# bury a real warning. Filtered by exact text; everything else still shows.
+swift build -c release --scratch-path "$SCRATCH" --arch arm64 --arch x86_64 2>&1 |
+    { grep -v "The x86_64 architecture is deprecated" || true; }
 BIN="$SCRATCH/out/Products/Release/$APP"
 
 # Assemble, sign and verify in $TMPDIR, never in the project directory.
@@ -87,10 +110,35 @@ echo "==> $OUT/$BUNDLE ready"
 # its first launch needs Privacy & Security -> Open Anyway, as the README says.
 if [ "${1:-}" = "release" ]; then
     VERSION=$(defaults read "$PWD/Resources/Info" CFBundleShortVersionString)
+    TAG="v$VERSION"
+
+    # Info.plist is the only source of the version. A tag of the same name on a
+    # different commit means the two have diverged, and the release would carry
+    # a zip whose name disagrees with its tag.
+    if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1 &&
+       [ "$(git rev-parse "$TAG^{commit}")" != "$(git rev-parse HEAD)" ]; then
+        echo "$TAG already exists on another commit — bump" \
+             "CFBundleShortVersionString in Resources/Info.plist" >&2
+        exit 1
+    fi
+
+    # Every past version, not just this one: leaving older zips here lets a
+    # glob like build/*.zip attach a stale binary to the new release.
+    rm -f "$OUT/$APP"-*.zip
     ZIP="$OUT/$APP-$VERSION.zip"
-    rm -f "$ZIP"
     ditto -c -k --keepParent "$STAGE" "$ZIP"
+
+    # Verify the archive, not just the bundle that went into it: the zip is
+    # what gets published, and a truncated one would otherwise reach a
+    # stranger's Mac before anyone noticed.
+    UNZIP_DIR="$STAGE_DIR/verify"
+    mkdir -p "$UNZIP_DIR"
+    ditto -x -k "$ZIP" "$UNZIP_DIR"
+    codesign --verify --strict "$UNZIP_DIR/$BUNDLE"
+
     echo "==> $ZIP ($(lipo -archs "$STAGE/Contents/MacOS/$APP"))"
+    echo "==> next: git tag -a $TAG -m \"$APP $VERSION\" && git push origin $TAG"
+    echo "==>       gh release create $TAG $ZIP"
 fi
 
 # Scripts/make.sh install — also place it in /Applications.

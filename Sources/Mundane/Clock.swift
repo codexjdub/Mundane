@@ -23,6 +23,15 @@ final class Clock {
 
     @ObservationIgnored private var tokens: [(NotificationCenter, NSObjectProtocol)] = []
 
+    /// A clock pinned to one day, for reproducible offscreen rendering.
+    ///
+    /// Registers no observers: nothing should ever move it. The screenshot tool
+    /// uses this so regenerating the README images does not rewrite them with
+    /// whatever month it happens to be.
+    init(pinnedTo day: Date) {
+        today = day
+    }
+
     init() {
         let center = NotificationCenter.default
         let workspace = NSWorkspace.shared.notificationCenter
