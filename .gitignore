@@ -1,0 +1,17 @@
+# Build output
+.build/
+build-icon-preview.png
+build-icon/
+*.app
+DerivedData/
+
+# Signing — never commit
+Local.xcconfig
+Local.sh
+
+# Agent instructions
+AGENTS.md
+TODO.md
+
+# macOS
+.DS_Store
