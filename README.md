@@ -24,12 +24,13 @@ Privacy & Security, scroll to the bottom, and click **Open Anyway**. Once only.
 
 ## Build
 
-macOS 14+ and Command Line Tools. **Xcode is not required.**
+macOS 14+ and Command Line Tools. **Xcode is not required.** Builds are universal,
+Apple silicon and Intel.
 
 ```sh
 ./make.sh            # build + sign into ./Mundane.app
 ./make.sh install    # also copy to /Applications
-./make.sh release    # universal, ad-hoc signed, zipped for a release
+./make.sh release    # ad-hoc signed and zipped for a GitHub release
 ```
 
 Signing identity comes from a gitignored `Local.sh`:

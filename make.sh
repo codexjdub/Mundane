@@ -43,15 +43,11 @@ if [ "${1:-}" = "screenshot" ]; then
 fi
 
 echo "==> build"
-if [ "${1:-}" = "release" ]; then
-    # Universal, so Intel Macs are covered. Kept out of everyday builds: two slices
-    # double the compile, and multi-arch relocates the product out of release/.
-    swift build -c release --scratch-path "$SCRATCH" --arch arm64 --arch x86_64
-    BIN="$SCRATCH/out/Products/Release/$APP"
-else
-    swift build -c release --scratch-path "$SCRATCH"
-    BIN="$SCRATCH/release/$APP"
-fi
+# Universal, so any build here runs on Apple silicon and Intel alike. The second
+# slice costs about a second incrementally, which is not worth a separate release
+# mode. Multi-arch relocates the product out of release/, hence the longer path.
+swift build -c release --scratch-path "$SCRATCH" --arch arm64 --arch x86_64
+BIN="$SCRATCH/out/Products/Release/$APP"
 
 # Assemble, sign and verify in $TMPDIR, never in the project directory.
 # codesign --strict rejects com.apple.FinderInfo, and this tree lives under a file
