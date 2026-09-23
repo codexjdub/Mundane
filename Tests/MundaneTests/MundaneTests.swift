@@ -6,33 +6,49 @@ import Testing
 
 @Test func monthMetaRowCounts() {
     // Feb 2026 starts Sunday and ends Saturday — exactly four weeks.
-    let feb = MonthMeta(year: 2026, month: 2)
+    let feb = MonthMeta(year: 2026, month: 2, weekStart: Weekday.sunday)
     #expect(feb.rowCount == 4)
-    #expect(feb.firstWeekday == 0)
+    #expect(feb.firstColumn == 0)
     #expect(feb.lastColumn == 6)
 
-    #expect(MonthMeta(year: 2026, month: 8).rowCount == 6)
-    #expect(MonthMeta(year: 2026, month: 9).dayCount == 30)
-    #expect(MonthMeta(year: 2024, month: 2).dayCount == 29)   // leap
+    // The same month in a Monday-first week: the 1st, a Sunday, moves to the
+    // last column, so four weeks of days now span five rows.
+    let febMonday = MonthMeta(year: 2026, month: 2, weekStart: 2)
+    #expect(febMonday.firstColumn == 6)
+    #expect(febMonday.rowCount == 5)
+    #expect(febMonday.lastColumn == 5)
+
+    #expect(MonthMeta(year: 2026, month: 8, weekStart: Weekday.sunday).rowCount == 6)
+    #expect(MonthMeta(year: 2026, month: 9, weekStart: Weekday.sunday).dayCount == 30)
+    #expect(MonthMeta(year: 2024, month: 2, weekStart: Weekday.sunday).dayCount == 29)   // leap
 }
 
 @Test func cellsFillTheGridContiguously() {
-    for month in 1 ... 12 {
-        let meta = MonthMeta(year: 2026, month: month)
-        let cells = meta.cells
-        #expect(cells.count == meta.rowCount * 7)
-        #expect(cells.filter(\.inMonth).count == meta.dayCount)
-        // in-month days run 1...dayCount in order, with no gaps
-        #expect(cells.filter(\.inMonth).map(\.day) == Array(1 ... meta.dayCount))
-        // the arithmetically derived day numbers must equal Calendar's answer,
-        // including the greyed neighbours either side
-        for cell in cells {
-            #expect(cell.day == MonthMeta.calendar.component(.day, from: cell.date))
-        }
-        // every cell is one day after the previous one
-        for (a, b) in zip(cells, cells.dropFirst()) {
-            let gap = MonthMeta.calendar.dateComponents([.day], from: a.date, to: b.date).day
-            #expect(gap == 1)
+    // Every week start, not just Sunday and Monday: a Saturday-first week
+    // exercises the wrap in the column arithmetic hardest.
+    for weekStart in 1 ... 7 {
+        for month in 1 ... 12 {
+            let meta = MonthMeta(year: 2026, month: month, weekStart: weekStart)
+            let cells = meta.cells
+            #expect(cells.count == meta.rowCount * 7)
+            #expect(cells.filter(\.inMonth).count == meta.dayCount)
+            // in-month days run 1...dayCount in order, with no gaps
+            #expect(cells.filter(\.inMonth).map(\.day) == Array(1 ... meta.dayCount))
+            // column 0 is the week start
+            #expect(cells[0].weekday == weekStart)
+            for cell in cells {
+                // the arithmetically derived day numbers must equal Calendar's
+                // answer, including the greyed neighbours either side
+                #expect(cell.day == MonthMeta.calendar.component(.day, from: cell.date))
+                // and so must the weekday that decides the red and the blue —
+                // this is what fails if colours key off a column again
+                #expect(cell.weekday == MonthMeta.calendar.component(.weekday, from: cell.date))
+            }
+            // every cell is one day after the previous one
+            for (a, b) in zip(cells, cells.dropFirst()) {
+                let gap = MonthMeta.calendar.dateComponents([.day], from: a.date, to: b.date).day
+                #expect(gap == 1)
+            }
         }
     }
 }
@@ -89,26 +105,29 @@ import Testing
 
 @Test func ribbonCollapsesOnDegenerateMonths() {
     let cell = CGSize(width: 31, height: 29)
-    for month in 1 ... 12 {
-        let meta = MonthMeta(year: 2026, month: month)
-        let path = Ribbon.path(meta: meta, cell: cell, radius: 11.6)
-        #expect(!path.isEmpty)
+    for weekStart in 1 ... 7 {
+        for month in 1 ... 12 {
+            let meta = MonthMeta(year: 2026, month: month, weekStart: weekStart)
+            let path = Ribbon.path(meta: meta, cell: cell, radius: 11.6)
+            #expect(!path.isEmpty)
 
-        var corners = 0
-        path.forEach { if case .quadCurve = $0 { corners += 1 } }
+            var corners = 0
+            path.forEach { if case .quadCurve = $0 { corners += 1 } }
 
-        // 8 corners normally; a month starting Sunday or ending Saturday drops 2.
-        var expected = 8
-        if meta.firstWeekday == 0 { expected -= 2 }
-        if meta.lastColumn == 6 { expected -= 2 }
-        #expect(corners == expected)
+            // 8 corners normally; a month starting in the first column or
+            // ending in the last drops 2.
+            var expected = 8
+            if meta.firstColumn == 0 { expected -= 2 }
+            if meta.lastColumn == 6 { expected -= 2 }
+            #expect(corners == expected)
 
-        // The stroke must stay inside the grid on all four sides.
-        let box = path.boundingRect
-        #expect(box.minX >= 0)
-        #expect(box.minY >= 0)
-        #expect(box.maxX <= 7 * cell.width)
-        #expect(box.maxY <= CGFloat(meta.rowCount) * cell.height)
+            // The stroke must stay inside the grid on all four sides.
+            let box = path.boundingRect
+            #expect(box.minX >= 0)
+            #expect(box.minY >= 0)
+            #expect(box.maxX <= 7 * cell.width)
+            #expect(box.maxY <= CGFloat(meta.rowCount) * cell.height)
+        }
     }
 }
 

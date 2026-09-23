@@ -2,6 +2,18 @@ import SwiftUI
 
 // MARK: - Grid
 
+/// Red for Sunday, blue for Saturday, nil for the rest. The day numbers, the
+/// header and the weekend band all go through this, keyed by weekday rather
+/// than column, so the colours stay on the right days whichever day the week
+/// starts on.
+private func weekendTint(_ weekday: Int) -> Color? {
+    switch weekday {
+    case Weekday.sunday:   Palette.sunday
+    case Weekday.saturday: Palette.saturday
+    default:               nil
+    }
+}
+
 struct DayCellView: View {
     let cell: DayCell
     let metrics: GridMetrics
@@ -24,24 +36,25 @@ struct DayCellView: View {
     private var tint: Color {
         if isToday { return Palette.paper }
         if !cell.inMonth { return Palette.soft.opacity(0.5) }
-        switch cell.column {
-        case 0: return Palette.sunday
-        case 6: return Palette.saturday
-        default: return Palette.ink
-        }
+        return weekendTint(cell.weekday) ?? Palette.ink
     }
 }
 
 struct WeekdayHeader: View {
     let metrics: GridMetrics
+    let weekStart: Int
+    /// Indexed by weekday, Sunday first, and rotated to the week start. English
+    /// whatever the locale: the system's own symbols would put 日月火… on a
+    /// Japanese Mac, and the design has no kanji headers.
     private let letters = ["S", "M", "T", "W", "T", "F", "S"]
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(Array(letters.enumerated()), id: \.offset) { i, letter in
-                Text(letter)
+            ForEach(0 ..< 7, id: \.self) { column in
+                let weekday = Weekday.at(column: column, weekStart: weekStart)
+                Text(letters[weekday - 1])
                     .font(Typeface.maru(metrics.fontSize - 2))
-                    .foregroundStyle(i == 0 ? Palette.sunday : (i == 6 ? Palette.saturday : Palette.soft))
+                    .foregroundStyle(weekendTint(weekday) ?? Palette.soft)
                     .frame(width: metrics.cell.width)
             }
         }
@@ -60,13 +73,15 @@ struct MonthGrid: View {
         // round trips for a year render, the single largest cost in it.
         let now = MonthMeta.calendar.dateComponents([.year, .month, .day], from: today)
         ZStack(alignment: .topLeading) {
-            // Shading the weekends rather than the weekdays: two bands instead of
-            // five, and it reinforces the red and blue instead of inverting which
-            // days are the exception. Behind the cells so the ribbon still reads.
+            // Shading the weekends rather than the weekdays: two columns instead
+            // of five, and it reinforces the red and blue instead of inverting
+            // which days are the exception. Behind the cells so the ribbon still
+            // reads. Exactly the tinted days, wherever the week start puts them.
             HStack(spacing: 0) {
                 ForEach(0 ..< 7, id: \.self) { column in
+                    let weekday = Weekday.at(column: column, weekStart: meta.weekStart)
                     Rectangle()
-                        .fill(column == 0 || column == 6 ? Palette.band : Color.clear)
+                        .fill(weekendTint(weekday) != nil ? Palette.band : Color.clear)
                         .frame(width: metrics.cell.width)
                 }
             }
@@ -291,7 +306,7 @@ struct MonthView: View {
     let z: Sizing
 
     var body: some View {
-        let meta = MonthMeta(containing: state.anchor)
+        let meta = MonthMeta(containing: state.anchor, weekStart: state.weekStart)
         VStack(spacing: 0) {
             NavHeader(state: state, z: z,
                       onPrev: { state.page(-1) }, onNext: { state.page(1) }) {
@@ -301,7 +316,7 @@ struct MonthView: View {
                 }
                 .font(Typeface.maru(z.title))
             }
-            WeekdayHeader(metrics: z.monthGrid)
+            WeekdayHeader(metrics: z.monthGrid, weekStart: meta.weekStart)
             MonthGrid(meta: meta, metrics: z.monthGrid, showsRibbon: true, today: state.today)
         }
         .frame(width: z.monthGrid.width)
@@ -315,7 +330,8 @@ struct ThreeMonthView: View {
     var body: some View {
         let cal = MonthMeta.calendar
         let months = (-1 ... 1).map {
-            MonthMeta(containing: cal.date(byAdding: .month, value: $0, to: state.anchor)!)
+            MonthMeta(containing: cal.date(byAdding: .month, value: $0, to: state.anchor)!,
+                      weekStart: state.weekStart)
         }
         VStack(spacing: 0) {
             NavHeader(state: state, z: z,
@@ -345,7 +361,7 @@ struct ThreeMonthView: View {
                         Text(shortMonths[meta.month - 1])
                             .font(Typeface.maru(z.monthLabel))
                             .foregroundStyle(current ? Palette.ink : Palette.soft)
-                        WeekdayHeader(metrics: z.threeGrid)
+                        WeekdayHeader(metrics: z.threeGrid, weekStart: meta.weekStart)
                         MonthGrid(meta: meta, metrics: z.threeGrid,
                                   showsRibbon: current, today: state.today)
                     }
@@ -362,7 +378,8 @@ struct YearView: View {
 
     var body: some View {
         let year = MonthMeta.calendar.component(.year, from: state.anchor)
-        let currentMonth = MonthMeta(containing: state.today)
+        let weekStart = state.weekStart
+        let currentMonth = MonthMeta(containing: state.today, weekStart: weekStart)
         VStack(spacing: 0) {
             NavHeader(state: state, z: z,
                       onPrev: { state.page(-1) }, onNext: { state.page(1) }) {
@@ -379,7 +396,7 @@ struct YearView: View {
                     GridRow {
                         ForEach(0 ..< 3, id: \.self) { col in
                             let month = row * 3 + col + 1
-                            let meta = MonthMeta(year: year, month: month)
+                            let meta = MonthMeta(year: year, month: month, weekStart: weekStart)
                             let isCurrent = year == currentMonth.year && month == currentMonth.month
                             VStack(spacing: 2) {
                                 Text(shortMonths[month - 1])

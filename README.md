@@ -1,8 +1,9 @@
 # Mundane
 
 A tiny calendar for the macOS menu bar. Shows the date; clicking it opens a month,
-three-month, or year view. No calendar events, no network, no timers — it idles at
-17 MB and 0% CPU with the panel closed.
+three-month, or year view. Weeks start on whichever day System Settings → Language
+& Region says. No calendar events, no network, no timers — it idles at 17 MB and 0%
+CPU with the panel closed.
 
 ![Month and three-month views, light and dark](docs/screenshot.png)
 
@@ -92,8 +93,10 @@ MUNDANE_SELFTEST=1 /Applications/Mundane.app/Contents/MacOS/Mundane
 
 The parts unit tests can't reach: opens the panel, cycles the views, sends real
 key events through the responder chain, and asserts the card and seal stay on
-screen. Quit any running copy first — a second instance takes key window and the
-run reports NOT VISIBLE.
+screen. Quit any running copy first and leave the Mac alone while it runs: anything
+that takes key window — a second instance, a click, another app coming forward —
+closes the panel, and that step reports NOT VISIBLE. A single stray NOT VISIBLE is
+usually that, so rerun before suspecting the code.
 
 ## Licence
 

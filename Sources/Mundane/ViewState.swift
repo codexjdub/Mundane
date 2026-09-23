@@ -43,6 +43,10 @@ final class ViewState {
     /// so the grid redraws on day rollover without any wiring here.
     var today: Date { clock.today }
 
+    /// Same, for the first day of the week: changing it in System Settings
+    /// redraws an open panel.
+    var weekStart: Int { clock.weekStart }
+
     /// Whether the period on screen contains today.
     var isShowingToday: Bool {
         let cal = MonthMeta.calendar

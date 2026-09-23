@@ -6,8 +6,8 @@ import SwiftUI
 /// of whose corners are concave. Rather than case-analysing the shapes (Itsycal
 /// branches three ways), build the 8 points, throw away any that coincide or lie
 /// on a straight line, and round whatever is left with a quadratic through the
-/// vertex. That collapses correctly on its own when a month starts on a Sunday or
-/// ends on a Saturday.
+/// vertex. That collapses correctly on its own when a month starts in the first
+/// column or ends in the last, whichever day the week starts on.
 enum Ribbon {
     static func path(meta: MonthMeta,
                      cell: CGSize,
@@ -15,7 +15,7 @@ enum Ribbon {
                      inset: CGFloat = 0.8) -> Path {
         let w = 7 * cell.width
         let rows = CGFloat(meta.rowCount)
-        let s = CGFloat(meta.firstWeekday)
+        let s = CGFloat(meta.firstColumn)
         let e = CGFloat(meta.lastColumn)
 
         let points = [

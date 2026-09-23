@@ -6,48 +6,68 @@ struct DayCell: Identifiable {
     let id: Int
     let day: Int
     let inMonth: Bool
-    let column: Int
+    /// The real weekday, not the column — which column Sunday sits in depends
+    /// on which day the week starts.
+    let weekday: Int
     let date: Date
+}
+
+/// Weekdays as `Calendar` numbers them, 1 = Sunday … 7 = Saturday. These are
+/// absolute — Sunday is 1 however the week is laid out — so anything coloured by
+/// day keys off these, never off a column.
+enum Weekday {
+    static let sunday = 1
+    static let saturday = 7
+
+    /// The weekday shown in `column` of a grid whose week starts on `weekStart`.
+    static func at(column: Int, weekStart: Int) -> Int {
+        (weekStart - 1 + column) % 7 + 1
+    }
 }
 
 /// Everything the grid and the ribbon need to know about a month.
 struct MonthMeta {
     let year: Int
     let month: Int
-    /// Column of the 1st, 0 = Sunday.
-    let firstWeekday: Int
+    /// First day of the week, 1 = Sunday … 7 = Saturday.
+    let weekStart: Int
+    /// Column of the 1st, counted from the first day of the week.
+    let firstColumn: Int
     let dayCount: Int
     let rowCount: Int
     /// Column of the last day of the month.
     let lastColumn: Int
 
-    /// Sunday-first, to match the designed S M T W T F S header.
-    /// TODO: make the first day of week a setting.
+    /// Its own `firstWeekday` is deliberately left alone: the only component
+    /// read from it is `.weekday`, which counts from Sunday regardless, and grid
+    /// columns come from `weekStart`.
     /// `timeZone` is explicitly autoupdating. A plain `Calendar(identifier:)`
     /// snapshots `TimeZone.current` at first access and keeps it forever, which
     /// made the grid resolve "today" in the old zone after travel while the menu
     /// bar (which uses `.autoupdatingCurrent`) had already moved on.
     static let calendar: Calendar = {
         var c = Calendar(identifier: .gregorian)
-        c.firstWeekday = 1
         c.timeZone = TimeZone.autoupdatingCurrent
         return c
     }()
 
-    init(year: Int, month: Int) {
+    /// `weekStart` has no default on purpose: a call site that forgot it would
+    /// silently lay out Sunday-first for everyone, which is the bug this fixes.
+    init(year: Int, month: Int, weekStart: Int) {
         self.year = year
         self.month = month
+        self.weekStart = weekStart
         let cal = Self.calendar
         let first = cal.date(from: DateComponents(year: year, month: month, day: 1))!
-        self.firstWeekday = cal.component(.weekday, from: first) - 1
+        self.firstColumn = (cal.component(.weekday, from: first) - weekStart + 7) % 7
         self.dayCount = cal.range(of: .day, in: .month, for: first)!.count
-        self.rowCount = Int((Double(firstWeekday + dayCount) / 7.0).rounded(.up))
-        self.lastColumn = (firstWeekday + dayCount - 1) % 7
+        self.rowCount = Int((Double(firstColumn + dayCount) / 7.0).rounded(.up))
+        self.lastColumn = (firstColumn + dayCount - 1) % 7
     }
 
-    init(containing date: Date) {
+    init(containing date: Date, weekStart: Int) {
         let c = Self.calendar.dateComponents([.year, .month], from: date)
-        self.init(year: c.year ?? 2026, month: c.month ?? 1)
+        self.init(year: c.year ?? 2026, month: c.month ?? 1, weekStart: weekStart)
     }
 
     var firstDay: Date {
@@ -64,7 +84,7 @@ struct MonthMeta {
                                          for: cal.date(byAdding: .month, value: -1,
                                                        to: first) ?? first)?.count ?? 30
         return (0 ..< rowCount * 7).map { i in
-            let offset = i - firstWeekday
+            let offset = i - firstColumn
             let day: Int
             if offset < 0            { day = previousDayCount + offset + 1 }
             else if offset < dayCount { day = offset + 1 }
@@ -73,7 +93,7 @@ struct MonthMeta {
             return DayCell(id: i,
                            day: day,
                            inMonth: offset >= 0 && offset < dayCount,
-                           column: i % 7,
+                           weekday: Weekday.at(column: i % 7, weekStart: weekStart),
                            date: cal.date(byAdding: .day, value: offset, to: first)!)
         }
     }
