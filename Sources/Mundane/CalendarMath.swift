@@ -17,11 +17,31 @@ struct DayCell: Identifiable {
 /// day keys off these, never off a column.
 enum Weekday {
     static let sunday = 1
+    static let monday = 2
     static let saturday = 7
 
     /// The weekday shown in `column` of a grid whose week starts on `weekStart`.
     static func at(column: Int, weekStart: Int) -> Int {
         (weekStart - 1 + column) % 7 + 1
+    }
+
+    /// All seven weekdays in column order. The header, the weekend band and the
+    /// cells all read this rather than doing column arithmetic of their own, so
+    /// none of them can drift back to keying off a column.
+    static func columns(weekStart: Int) -> [Int] {
+        (0 ..< 7).map { at(column: $0, weekStart: weekStart) }
+    }
+
+    /// Sunday and Saturday: the days drawn in red and blue, and shaded.
+    static func isWeekend(_ weekday: Int) -> Bool {
+        weekday == sunday || weekday == saturday
+    }
+
+    /// Header letter for a weekday. English whatever the locale: the system's
+    /// own symbols would put 日月火… on a Japanese Mac, and the design has no
+    /// kanji headers.
+    static func letter(_ weekday: Int) -> String {
+        ["S", "M", "T", "W", "T", "F", "S"][weekday - 1]
     }
 }
 
@@ -83,6 +103,7 @@ struct MonthMeta {
         let previousDayCount = cal.range(of: .day, in: .month,
                                          for: cal.date(byAdding: .month, value: -1,
                                                        to: first) ?? first)?.count ?? 30
+        let weekdays = Weekday.columns(weekStart: weekStart)
         return (0 ..< rowCount * 7).map { i in
             let offset = i - firstColumn
             let day: Int
@@ -93,7 +114,7 @@ struct MonthMeta {
             return DayCell(id: i,
                            day: day,
                            inMonth: offset >= 0 && offset < dayCount,
-                           weekday: Weekday.at(column: i % 7, weekStart: weekStart),
+                           weekday: weekdays[i % 7],
                            date: cal.date(byAdding: .day, value: offset, to: first)!)
         }
     }

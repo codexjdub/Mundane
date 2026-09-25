@@ -13,7 +13,7 @@ import Testing
 
     // The same month in a Monday-first week: the 1st, a Sunday, moves to the
     // last column, so four weeks of days now span five rows.
-    let febMonday = MonthMeta(year: 2026, month: 2, weekStart: 2)
+    let febMonday = MonthMeta(year: 2026, month: 2, weekStart: Weekday.monday)
     #expect(febMonday.firstColumn == 6)
     #expect(febMonday.rowCount == 5)
     #expect(febMonday.lastColumn == 5)
@@ -50,6 +50,30 @@ import Testing
                 #expect(gap == 1)
             }
         }
+    }
+}
+
+@Test func headerAndBandFollowTheWeekStart() {
+    // The header, the weekend band and the cells draw straight from these, with
+    // no column arithmetic of their own — so this is what fails if any of them
+    // is keyed off a column again.
+    #expect(Weekday.columns(weekStart: Weekday.sunday) == [1, 2, 3, 4, 5, 6, 7])
+    #expect(Weekday.columns(weekStart: Weekday.monday) == [2, 3, 4, 5, 6, 7, 1])
+    #expect(Weekday.columns(weekStart: Weekday.sunday).map(Weekday.letter)
+            == ["S", "M", "T", "W", "T", "F", "S"])
+    #expect(Weekday.columns(weekStart: Weekday.monday).map(Weekday.letter)
+            == ["M", "T", "W", "T", "F", "S", "S"])
+    // Monday-first: one band across the last two columns, Saturday then Sunday,
+    // rather than one at each edge.
+    #expect(Weekday.columns(weekStart: Weekday.monday).map(Weekday.isWeekend)
+            == [false, false, false, false, false, true, true])
+    #expect(Weekday.columns(weekStart: Weekday.monday).suffix(2)
+            == [Weekday.saturday, Weekday.sunday])
+    for start in 1 ... 7 {
+        let columns = Weekday.columns(weekStart: start)
+        #expect(columns.first == start)
+        #expect(Set(columns) == Set(1 ... 7))                  // each day once
+        #expect(columns.filter(Weekday.isWeekend).count == 2)
     }
 }
 
@@ -256,4 +280,27 @@ import Testing
             }
         }
     }
+}
+
+// MARK: - Clock
+
+/// Stands in for the system setting, so a test can change it.
+private final class WeekStartSetting {
+    var value = Weekday.sunday
+}
+
+@Test @MainActor func weekStartFollowsLocaleChanges() async {
+    let setting = WeekStartSetting()
+    let clock = Clock(weekStartSource: { setting.value })
+    #expect(clock.weekStart == Weekday.sunday)
+
+    // What changing it in System Settings amounts to: the preference changes,
+    // then the locale notification arrives. The app is never relaunched, so
+    // this is the only way an open panel learns about it.
+    setting.value = Weekday.monday
+    NotificationCenter.default.post(name: NSLocale.currentLocaleDidChangeNotification,
+                                    object: nil)
+    // The observer runs on the main queue; let it drain before looking.
+    await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
+    #expect(clock.weekStart == Weekday.monday)
 }

@@ -2,16 +2,12 @@ import SwiftUI
 
 // MARK: - Grid
 
-/// Red for Sunday, blue for Saturday, nil for the rest. The day numbers, the
-/// header and the weekend band all go through this, keyed by weekday rather
-/// than column, so the colours stay on the right days whichever day the week
-/// starts on.
+/// Red for Sunday, blue for Saturday, nil for the rest. Keyed by weekday, never
+/// column, and gated on `Weekday.isWeekend` so the tinted days and the shaded
+/// days cannot disagree.
 private func weekendTint(_ weekday: Int) -> Color? {
-    switch weekday {
-    case Weekday.sunday:   Palette.sunday
-    case Weekday.saturday: Palette.saturday
-    default:               nil
-    }
+    guard Weekday.isWeekend(weekday) else { return nil }
+    return weekday == Weekday.sunday ? Palette.sunday : Palette.saturday
 }
 
 struct DayCellView: View {
@@ -43,16 +39,11 @@ struct DayCellView: View {
 struct WeekdayHeader: View {
     let metrics: GridMetrics
     let weekStart: Int
-    /// Indexed by weekday, Sunday first, and rotated to the week start. English
-    /// whatever the locale: the system's own symbols would put 日月火… on a
-    /// Japanese Mac, and the design has no kanji headers.
-    private let letters = ["S", "M", "T", "W", "T", "F", "S"]
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(0 ..< 7, id: \.self) { column in
-                let weekday = Weekday.at(column: column, weekStart: weekStart)
-                Text(letters[weekday - 1])
+            ForEach(Weekday.columns(weekStart: weekStart), id: \.self) { weekday in
+                Text(Weekday.letter(weekday))
                     .font(Typeface.maru(metrics.fontSize - 2))
                     .foregroundStyle(weekendTint(weekday) ?? Palette.soft)
                     .frame(width: metrics.cell.width)
@@ -78,10 +69,9 @@ struct MonthGrid: View {
             // which days are the exception. Behind the cells so the ribbon still
             // reads. Exactly the tinted days, wherever the week start puts them.
             HStack(spacing: 0) {
-                ForEach(0 ..< 7, id: \.self) { column in
-                    let weekday = Weekday.at(column: column, weekStart: meta.weekStart)
+                ForEach(Weekday.columns(weekStart: meta.weekStart), id: \.self) { weekday in
                     Rectangle()
-                        .fill(weekendTint(weekday) != nil ? Palette.band : Color.clear)
+                        .fill(Weekday.isWeekend(weekday) ? Palette.band : Color.clear)
                         .frame(width: metrics.cell.width)
                 }
             }
@@ -379,7 +369,7 @@ struct YearView: View {
     var body: some View {
         let year = MonthMeta.calendar.component(.year, from: state.anchor)
         let weekStart = state.weekStart
-        let currentMonth = MonthMeta(containing: state.today, weekStart: weekStart)
+        let current = MonthMeta.calendar.dateComponents([.year, .month], from: state.today)
         VStack(spacing: 0) {
             NavHeader(state: state, z: z,
                       onPrev: { state.page(-1) }, onNext: { state.page(1) }) {
@@ -397,7 +387,7 @@ struct YearView: View {
                         ForEach(0 ..< 3, id: \.self) { col in
                             let month = row * 3 + col + 1
                             let meta = MonthMeta(year: year, month: month, weekStart: weekStart)
-                            let isCurrent = year == currentMonth.year && month == currentMonth.month
+                            let isCurrent = year == current.year && month == current.month
                             VStack(spacing: 2) {
                                 Text(shortMonths[month - 1])
                                     .font(Typeface.maru(z.yearMonthLabel))

@@ -74,12 +74,14 @@ handling; the other non-obvious decisions are commented where they happen.
 ## Verifying
 
 ```sh
-Scripts/test.sh      # 13 unit tests
+Scripts/test.sh      # 15 unit tests
 ```
 
 Covers the pure units: panel positioning against three screen geometries, ribbon
 geometry for every month, scroll accumulation, key decoding, calendar maths, and
-that the reserved menu bar width holds for all 365 days in every format.
+that the reserved menu bar width holds for all 365 days in every format. The grid,
+header, weekend band and ribbon are checked for all seven week starts, and a week
+start changed while the app runs is followed without a relaunch.
 
 `Scripts/test.sh` exists rather than plain `swift test` for two Command Line Tools
 reasons, both explained in the script: the build has to live outside this tree
@@ -93,10 +95,8 @@ MUNDANE_SELFTEST=1 /Applications/Mundane.app/Contents/MacOS/Mundane
 
 The parts unit tests can't reach: opens the panel, cycles the views, sends real
 key events through the responder chain, and asserts the card and seal stay on
-screen. Quit any running copy first and leave the Mac alone while it runs: anything
-that takes key window — a second instance, a click, another app coming forward —
-closes the panel, and that step reports NOT VISIBLE. A single stray NOT VISIBLE is
-usually that, so rerun before suspecting the code.
+screen. The panel stays up for the whole run whatever else takes focus, so it can
+run beside your own copy, and a NOT VISIBLE is a real failure.
 
 ## Licence
 

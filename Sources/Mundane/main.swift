@@ -47,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Drives a real open-and-switch sequence and reports where the panel lands,
     /// so positioning can be checked without a human clicking.
     private func runSelfTest() {
+        selfTesting = true
         let modes: [ViewMode] = [.month, .threeMonths, .year, .month]
         var step = 0
         func emit(_ s: String) {
@@ -158,6 +159,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// the second half of a "close" click.
     private var hiddenAt: Date?
 
+    /// True for the length of a self-test run. The panel normally hides the
+    /// moment it loses key, which is right for a person and wrong for a test:
+    /// any app that came forward mid-run hid it and failed that step at random,
+    /// and could make "esc closes the panel" pass on a panel that was already
+    /// gone. The run sends its key events straight to the panel, so nothing in
+    /// it needs the panel to be key.
+    private var selfTesting = false
+
     private func togglePanel() {
         // Clicking the status item makes the panel resign key during mouse-down,
         // and the action fires on mouse-up — so by the time we get here the panel
@@ -184,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func windowDidResignKey(_ notification: Notification) {
         // Only our panel. Nothing else is delegated to us today, but an alert or
         // a future window would otherwise hide the calendar behind the user's back.
-        guard notification.object as? NSWindow === panel else { return }
+        guard notification.object as? NSWindow === panel, !selfTesting else { return }
         hidePanel()
     }
 

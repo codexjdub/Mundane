@@ -23,7 +23,11 @@ final class Clock {
     /// First day of the week as `Calendar` numbers it, 1 = Sunday … 7 = Saturday.
     /// Read from the system rather than offered as a setting: anyone who starts
     /// their week on Monday has already said so in System Settings.
-    private(set) var weekStart: Int = Calendar.autoupdatingCurrent.firstWeekday
+    private(set) var weekStart: Int
+
+    /// Where `weekStart` comes from: the system setting, except in a test, which
+    /// substitutes its own so it can change the answer and post the notification.
+    private let weekStartSource: () -> Int
 
     /// Called on the main thread whenever `today` moves to a different day.
     @ObservationIgnored var onDayChange: (() -> Void)?
@@ -36,12 +40,16 @@ final class Clock {
     /// Registers no observers: nothing should ever move it. The screenshot tool
     /// uses this so regenerating the README images does not rewrite them with
     /// whatever month it happens to be, or whichever week start that Mac has.
-    init(pinnedTo day: Date, weekStart: Int = 1) {
+    init(pinnedTo day: Date, weekStart: Int = Weekday.sunday) {
         today = day
         self.weekStart = weekStart
+        weekStartSource = { weekStart }
     }
 
-    init() {
+    init(weekStartSource: @escaping () -> Int = { Calendar.autoupdatingCurrent.firstWeekday }) {
+        self.weekStartSource = weekStartSource
+        weekStart = weekStartSource()
+
         let center = NotificationCenter.default
         let workspace = NSWorkspace.shared.notificationCenter
 
@@ -65,7 +73,7 @@ final class Clock {
     private func refresh() {
         // Only on a real change, like `today` below, so a wake or a midnight
         // does not invalidate every grid for nothing.
-        let start = Calendar.autoupdatingCurrent.firstWeekday
+        let start = weekStartSource()
         if start != weekStart { weekStart = start }
 
         let now = Date()
