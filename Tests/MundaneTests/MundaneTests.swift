@@ -259,6 +259,19 @@ import Testing
 
 // MARK: - Menu bar width
 
+@Test func menuBarItemIsTheDatesOwnWidth() {
+    // Never clipped, and no padding of its own: macOS adds the margin. Padding
+    // here on top is what made the date sit in blank space before.
+    func width(_ s: String) -> CGFloat {
+        (s as NSString).size(withAttributes: [.font: StatusItemController.font]).width
+    }
+    for text in ["1", "25", "5日", "25日", "9・5", "12・28", "9月5日", "12月28日"] {
+        let length = StatusItemController.length(for: text)
+        #expect(length >= width(text) + 0.5, "\(text)")
+        #expect(length < width(text) + 1.5, "\(text)")
+    }
+}
+
 @Test func menuBarWidthOnlyChangesWithTheDigitCount() {
     // The item is sized to the date, so it moves its neighbours whenever its
     // width changes. Monospaced digits keep that to the days it gains or loses a

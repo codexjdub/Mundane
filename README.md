@@ -74,7 +74,7 @@ handling; the other non-obvious decisions are commented where they happen.
 ## Verifying
 
 ```sh
-Scripts/test.sh      # 15 unit tests
+Scripts/test.sh      # 16 unit tests
 ```
 
 Covers the pure units: panel positioning against three screen geometries, ribbon

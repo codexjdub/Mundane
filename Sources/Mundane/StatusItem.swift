@@ -22,11 +22,12 @@ enum DateStyle: String, CaseIterable {
 
 /// Owns the menu bar item.
 ///
-/// macOS sizes it to the date, exactly as it would any text item, so it takes no
-/// more room than it needs. It used to reserve the width of the widest date the
-/// style could show, which kept its neighbours still but left blank space around
-/// the date most of the month — and a fixed length also gets a margin from macOS
-/// on top of the button's own padding, so the padding counted twice.
+/// The item is exactly as wide as the date. Its length is set to the text's own
+/// width, and macOS adds the 8 pt a side it gives every item — the least it
+/// allows. Left to size itself, a text item gets about 10 pt a side instead:
+/// 25日 took 50 pt that way and takes 46 this way. Drawing the date as a picture
+/// reaches 46 too, but measured at 1x it sat 1–2 px low and 20% lighter than
+/// real text, so the text stays text.
 ///
 /// Menu bar items pack rightward, so a change in width moves every icon to the
 /// left of this one. Monospaced digits (1 as wide as 8) keep that to the days
@@ -42,6 +43,12 @@ final class StatusItemController {
         let menuFont = NSFont.menuBarFont(ofSize: 0)
         return NSFont.monospacedDigitSystemFont(ofSize: menuFont.pointSize, weight: .regular)
     }()
+
+    /// The item's length for a date string: the text's own width, with half a
+    /// point to spare so the last glyph is never clipped.
+    static func length(for text: String) -> CGFloat {
+        ceil((text as NSString).size(withAttributes: [.font: font]).width + 0.5)
+    }
 
     var style: DateStyle {
         didSet {
@@ -70,7 +77,9 @@ final class StatusItemController {
 
     private func render() {
         guard let button = item.button else { return }
-        button.title = style.string(for: date)
+        let text = style.string(for: date)
+        item.length = Self.length(for: text)
+        button.title = text
         button.setAccessibilityLabel(Self.accessibilityDate.string(from: date))
     }
 
