@@ -79,7 +79,7 @@ Scripts/test.sh      # 15 unit tests
 
 Covers the pure units: panel positioning against three screen geometries, ribbon
 geometry for every month, scroll accumulation, key decoding, calendar maths, and
-that the reserved menu bar width holds for all 365 days in every format. The grid,
+that the menu bar date only changes width when it gains or loses a digit. The grid,
 header, weekend band and ribbon are checked for all seven week starts, and a week
 start changed while the app runs is followed without a relaunch.
 

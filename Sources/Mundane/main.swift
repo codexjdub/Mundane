@@ -78,6 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         func next() {
             guard step < modes.count else {
+                if let button = statusItem.item.button, let window = button.window {
+                    emit(String(format: "menu bar item %.0f pt for \"%@\"\n",
+                                window.frame.width, button.title as NSString))
+                }
                 // HOLD keeps the panel on screen so memory can be measured with it open
                 if ProcessInfo.processInfo.environment["MUNDANE_SELFTEST_HOLD"] == nil {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NSApp.terminate(nil) }
@@ -397,7 +401,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func selectStyle(_ sender: NSMenuItem) {
         guard let style: DateStyle = selection(sender) else { return }
         settings.dateStyle = style
-        statusItem.style = style      // recomputes the reserved width
+        statusItem.style = style
     }
 }
 

@@ -259,26 +259,32 @@ import Testing
 
 // MARK: - Menu bar width
 
-@Test func reservedWidthCoversEveryDateInAYear() {
-    let menuFont = NSFont.menuBarFont(ofSize: 0)
-    let font = NSFont.monospacedDigitSystemFont(ofSize: menuFont.pointSize, weight: .regular)
+@Test func menuBarWidthOnlyChangesWithTheDigitCount() {
+    // The item is sized to the date, so it moves its neighbours whenever its
+    // width changes. Monospaced digits keep that to the days it gains or loses a
+    // digit; with proportional ones "11" and "18" differ and it would shift on
+    // most days of the month. Every date with the same number of digits must
+    // measure exactly the same.
     func width(_ s: String) -> CGFloat {
-        let probe = NSStatusBarButton()
-        probe.font = font
-        probe.title = s
-        probe.sizeToFit()
-        return probe.frame.width
+        (s as NSString).size(withAttributes: [.font: StatusItemController.font]).width
     }
     let cal = MonthMeta.calendar
     for style in DateStyle.allCases {
-        let reserved = width(style.widestSample)
+        var byDigits: [Int: CGFloat] = [:]
         for month in 1 ... 12 {
             let first = cal.date(from: DateComponents(year: 2026, month: month, day: 1))!
             for day in cal.range(of: .day, in: .month, for: first)! {
-                let date = cal.date(from: DateComponents(year: 2026, month: month, day: day))!
-                #expect(width(style.string(for: date)) <= reserved)
+                let text = style.string(for: cal.date(from:
+                    DateComponents(year: 2026, month: month, day: day, hour: 12))!)
+                let digits = text.filter(\.isNumber).count
+                if let seen = byDigits[digits] {
+                    #expect(width(text) == seen, "\(style) \(text)")
+                } else {
+                    byDigits[digits] = width(text)
+                }
             }
         }
+        #expect(byDigits.count >= 2)    // both digit counts actually occurred
     }
 }
 

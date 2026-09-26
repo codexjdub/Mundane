@@ -18,35 +18,34 @@ enum DateStyle: String, CaseIterable {
         case .monthDayKanji: return "\(m)月\(d)日"
         }
     }
-
-    /// The widest string this style can ever produce.
-    ///
-    /// Derived by running `string(for:)` on the worst case rather than restating
-    /// the formats, so changing a separator here cannot leave the reserved width
-    /// measuring the old shape — the one failure this whole type exists to stop.
-    /// With monospaced digits only the digit count matters, so a two-digit month
-    /// and a two-digit day is the widest there is.
-    var widestSample: String {
-        let worst = Calendar.autoupdatingCurrent.date(
-            from: DateComponents(year: 2000, month: 12, day: 28)) ?? Date()
-        return string(for: worst)
-    }
 }
 
-/// Owns the menu bar item and keeps its width from jittering.
+/// Owns the menu bar item.
 ///
-/// Menu bar items pack rightward, so an item that changes width shoves every icon
-/// to its left. Two things prevent that: monospaced digits (so 1 is as wide as 8)
-/// and a fixed reserved length measured against the widest string the current
-/// style can produce — recomputed when the style changes, not just at launch.
+/// macOS sizes it to the date, exactly as it would any text item, so it takes no
+/// more room than it needs. It used to reserve the width of the widest date the
+/// style could show, which kept its neighbours still but left blank space around
+/// the date most of the month — and a fixed length also gets a margin from macOS
+/// on top of the button's own padding, so the padding counted twice.
+///
+/// Menu bar items pack rightward, so a change in width moves every icon to the
+/// left of this one. Monospaced digits (1 as wide as 8) keep that to the days
+/// the date gains or loses a digit: the 1st and 10th, and for the formats with a
+/// month in them, October and January.
 final class StatusItemController {
     let item: NSStatusItem
-    private let font: NSFont
+
+    /// The system menu bar's size, with monospaced digits. The panel uses
+    /// Hiragino Maru Gothic; the menu bar stays system font so it sits
+    /// consistently among its neighbours.
+    static let font: NSFont = {
+        let menuFont = NSFont.menuBarFont(ofSize: 0)
+        return NSFont.monospacedDigitSystemFont(ofSize: menuFont.pointSize, weight: .regular)
+    }()
 
     var style: DateStyle {
         didSet {
             guard style != oldValue else { return }
-            reserveWidth()
             render()
         }
     }
@@ -57,17 +56,10 @@ final class StatusItemController {
         self.style = style
         self.date = date
 
-        // Match the system menu bar's size, but with monospaced digits.
-        // (The panel uses Hiragino Maru Gothic; the menu bar stays system font so
-        // it sits consistently among its neighbours.)
-        let menuFont = NSFont.menuBarFont(ofSize: 0)
-        self.font = NSFont.monospacedDigitSystemFont(ofSize: menuFont.pointSize, weight: .regular)
-
         self.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = "MundaneStatusItem" // remember the user's cmd-drag position
-        item.button?.font = font
+        item.button?.font = Self.font
 
-        reserveWidth()
         render()
     }
 
@@ -80,14 +72,6 @@ final class StatusItemController {
         guard let button = item.button else { return }
         button.title = style.string(for: date)
         button.setAccessibilityLabel(Self.accessibilityDate.string(from: date))
-    }
-
-    private func reserveWidth() {
-        let probe = NSStatusBarButton()
-        probe.font = font
-        probe.title = style.widestSample
-        probe.sizeToFit()
-        item.length = probe.frame.width
     }
 
     private static let accessibilityDate: DateFormatter = {
